@@ -30,3 +30,36 @@ data "terraform_remote_state" "network" {
   }
 }
 
+data "aws_ami" "amazon_linux" {
+  most_recent = true
+
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
+  }
+
+  owners = ["amazon"]
+}
+
+resource "aws_instance" "app" {
+  count = var.instance_per_subnet * length(data.terraform_remote_state.network.outputs.private_subnet)
+
+  ami           = data.aws_ami.amazon_linux.id
+  instance_type = var.instance_type
+
+  subnet_id              = data.terraform_remote_state.network.outputs.private_subnet[count.index % length(data.terraform_remote_state.network.outputs.private_subnet)]
+  vpc_security_group_ids = data.terraform_remote_state.network.outputs.sg_web
+
+  user_data = <<-EOF
+    #!/bin/bash
+    sudo yum update -y
+    sudo yum install httpd -y
+    sudo systemctl enable httpd
+    sudo systemctl start httpd
+    echo "<html><body><div>Hello, world!</div></body></html>" > /var/www/html/index.html
+    EOF
+
+  tags = {
+    Name = "Web"
+  }
+}
