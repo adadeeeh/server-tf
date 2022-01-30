@@ -13,6 +13,7 @@ terraform {
       version = "~> 3.72.0"
     }
   }
+  required_version = "~> 1.1.3"
 }
 
 provider "aws" {
@@ -62,4 +63,12 @@ resource "aws_instance" "app" {
   tags = {
     Name = "Web"
   }
+}
+
+resource "aws_lb_target_group_attachment" "http" {
+  count = length(aws_instance.app)
+
+  target_group_arn = data.terraform_remote_state.network.outputs.lb_target_group_http_arn
+  target_id        = aws_instance.app.*.index
+  port             = 80
 }
