@@ -65,10 +65,37 @@ resource "aws_instance" "app" {
   }
 }
 
+resource "aws_instance" "app2" {
+  ami           = data.aws_ami.amazon_linux.id
+  instance_type = var.instance_type
+
+  subnet_id              = data.terraform_remote_state.network.outputs.private_subnet[0]
+  vpc_security_group_ids = data.terraform_remote_state.network.outputs.sg_web
+
+  user_data = <<-EOF
+    #!/bin/bash
+    sudo yum update -y
+    sudo yum install httpd -y
+    sudo systemctl enable httpd
+    sudo systemctl start httpd
+    echo "<html><body><div>Hello, world!</div></body></html>" > /var/www/html/index.html
+    EOF
+
+  tags = {
+    Name = "Web 2"
+  }
+}
+
 resource "aws_lb_target_group_attachment" "http" {
   count = length(aws_instance.app)
 
   target_group_arn = data.terraform_remote_state.network.outputs.lb_target_group_http_arn
   target_id        = aws_instance.app[count.index].id
+  port             = 80
+}
+
+resource "aws_lb_target_group_attachment" "http2" {
+  target_group_arn = data.terraform_remote_state.network.outputs.lb_target_group_http_arn
+  target_id        = aws_instance.app2.id
   port             = 80
 }
