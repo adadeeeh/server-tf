@@ -69,6 +69,6 @@ resource "aws_lb_target_group_attachment" "http" {
   count = length(aws_instance.app)
 
   target_group_arn = data.terraform_remote_state.network.outputs.lb_target_group_http_arn
-  target_id        = aws_instance.app.*.index
+  target_id        = aws_instance.app[count.index].id
   port             = 80
 }
